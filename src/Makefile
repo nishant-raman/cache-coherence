@@ -3,8 +3,8 @@ CXX = g++
 OPT = -g # debug mode
 WARN = -Wall
 ERR = -Werror
-DEBUG = -D_DEBUG
-# DEBUG = 
+#DEBUG = -D_DEBUG
+DEBUG = 
 
 CXXFLAGS = $(OPT) $(WARN) $(ERR) $(INC) $(LIB) $(DEBUG) -std=c++11
 
@@ -29,8 +29,11 @@ clean:
 
 PROTOCOL = 0
 TRACE_FILE = ../trace/canneal.04t.debug
-# TRACE_FILE = ../trace/canneal.04t.longTrace
+#TRACE_FILE = ../trace/canneal.04t.50k
+#TRACE_FILE = ../trace/canneal.04t.longTrace
 VALIDATION_FILE = ../val/Modified_MSI_debug.val 
+#VALIDATION_FILE = ../val/Modified_MSI_50k.val 
+#VALIDATION_FILE = ../val/Modified_MSI_long.val 
 # VALIDATION_FILE = ../val/Dragon_long.val
 
 run: all

@@ -8,6 +8,9 @@
 #include <cmath>
 #include <iostream>
 
+// forward declaration of cache
+class Bus;
+
 typedef unsigned long ulong;
 typedef unsigned char uchar;
 typedef unsigned int uint;
@@ -18,6 +21,27 @@ enum {
    VALID,
    DIRTY
 };
+
+enum operations {
+	PR_RD 	= 'r',
+	PR_WR 	= 'w',
+	BUS_RD  = 'b',
+	BUS_RDX = 'x',
+	BUS_UPD = 'u',
+	FLUSH	= 'f',
+	UPDATE	= 'd'
+};
+
+/*
+enum coherence_state {
+	I
+	C
+	Sc
+	Sm
+	E
+	M
+}
+*/
 
 class cacheLine 
 {
@@ -43,11 +67,10 @@ class Cache
 protected:
    ulong size, lineSize, assoc, sets, log2Sets, log2Blk, tagMask, numLines;
    ulong reads,readMisses,writes,writeMisses,writeBacks;
+   ulong mem_txn, invalidations, flushes, busrdx;
 
-   //******///
-   //add coherence counters here///
-   //******///
-
+   ulong id;
+   Bus*	bus;
    cacheLine **cache;
    ulong calcTag(ulong addr)     { return (addr >> (log2Blk) );}
    ulong calcIndex(ulong addr)   { return ((addr >> log2Blk) & tagMask);}
@@ -56,7 +79,7 @@ protected:
 public:
     ulong currentCycle;  
      
-    Cache(int,int,int);
+    Cache(int,int,int, ulong, Bus*);
    ~Cache() { delete cache;}
    
    cacheLine *findLineToReplace(ulong addr);
@@ -74,6 +97,7 @@ public:
    void Access(ulong,uchar);
    void printStats();
    void updateLRU(cacheLine *);
+
 
    //******///
    //add other functions to handle bus transactions///

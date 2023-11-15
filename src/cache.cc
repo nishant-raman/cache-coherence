@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "cache.h"
+#include "bus.h"
 using namespace std;
 
-Cache::Cache(int s,int a,int b )
+Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus)
 {
    ulong i, j;
    reads = readMisses = writes = 0; 
@@ -24,6 +25,8 @@ Cache::Cache(int s,int a,int b )
    //*******************//
    //initialize your counters here//
    //*******************//
+   id = _id;
+   bus = _bus;
  
    tagMask =0;
    for(i=0;i<log2Sets;i++)
@@ -50,28 +53,64 @@ since this function is an entry point
 to the memory hierarchy (i.e. caches)**/
 void Cache::Access(ulong addr,uchar op)
 {
-   currentCycle++;/*per cache global counter to maintain LRU order 
-                    among cache ways, updated on every cache access*/
-         
-   if(op == 'w') writes++;
-   else          reads++;
-   
-   cacheLine * line = findLine(addr);
-   if(line == NULL)/*miss*/
-   {
-      if(op == 'w') writeMisses++;
-      else readMisses++;
+	// If processor accesses cache
+   if ((op == PR_RD) || (op == PR_WR)) {
+	   currentCycle++;/*per cache global counter to maintain LRU order 
+	                    among cache ways, updated on every cache access*/
+	         
+	   if(op == 'w') writes++;
+	   else          reads++;
+	   
+	   cacheLine * line = findLine(addr);
+	   if(line == NULL)/*miss*/
+	   {
+		  mem_txn++;
+	      if(op == 'w') writeMisses++;
+	      else readMisses++;
+	
+	      cacheLine *newline = fillLine(addr);
+	      if(op == 'w') newline->setFlags(DIRTY);    
+	
+		  if(op == 'w') {
+			busrdx++;
+			bus->busRdX(addr,id);
+		  } else {
+			bus->busRd(addr,id);
+		  }
+	      
+	   }
+	   else
+	   {
+	      /**since it's a hit, update LRU and update dirty flag**/
+	      updateLRU(line);
+	      if(op == 'w') line->setFlags(DIRTY);
+	   }
+		// MSI
+		// if miss
+		// 		if rd then busrd
+		// 		if wr then budrdx
+		// if hit
+		// 		if rd then nothing
+		// 		if wr then mod
+	}
 
-      cacheLine *newline = fillLine(addr);
-      if(op == 'w') newline->setFlags(DIRTY);    
-      
-   }
-   else
-   {
-      /**since it's a hit, update LRU and update dirty flag**/
-      updateLRU(line);
-      if(op == 'w') line->setFlags(DIRTY);
-   }
+	// BUS RD 
+	// for MSI
+	// check if cache has cache line with addr
+	// if yes then invalidate (if modified then flush)
+	if ((op == BUS_RD) || (op == BUS_RDX)) {
+		cacheLine* line = findLine(addr);
+		if (line) {
+			if (line->getFlags() == DIRTY) {
+	   			mem_txn++;
+      			writeBack(addr);
+				flushes++;
+				bus->flush(addr, id);
+			}
+			invalidations++;
+			line->invalidate();
+		}
+	}
 }
 
 /*look up line*/
@@ -151,7 +190,9 @@ cacheLine *Cache::fillLine(ulong addr)
    assert(victim != 0);
    
    if(victim->getFlags() == DIRTY) {
+	  mem_txn++;
       writeBack(addr);
+		// FIXME is flush needed here?
    }
       
    tag = calcTag(addr);   
@@ -165,7 +206,21 @@ cacheLine *Cache::fillLine(ulong addr)
 
 void Cache::printStats()
 { 
-   printf("===== Simulation results      =====\n");
+   float missrate = (float)(readMisses + writeMisses)*100/(float)(reads + writes);
+	
+   printf("============ Simulation results (Cache %lu) ============\n", id);
+   printf("01. number of reads:				%lu\n", reads);
+   printf("02. number of read misses:			%lu\n", readMisses);
+   printf("03. number of writes:				%lu\n", writes);
+   printf("04. number of write misses:			%lu\n", writeMisses);
+   printf("05. total miss rate:				%.2f%%\n", missrate);
+   printf("06. number of writebacks:			%lu\n", writeBacks);
+   printf("07. number of memory transactions:		%lu\n", mem_txn);
+   printf("08. number of invalidations:			%lu\n", invalidations);
+   printf("09. number of flushes:				%lu\n", flushes);
+   printf("10. number of BusRdX:				%lu\n", busrdx);
    /****print out the rest of statistics here.****/
    /****follow the ouput file format**************/
+	// TODO
 }
+
