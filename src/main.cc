@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
     for(ulong i = 0; i < num_processors; i++) {
 		if (protocol == 0)
     		cacheArray[i] = new CacheMSI(cache_size, cache_assoc, blk_size, i, bus);
-		//else
-    	//	cacheArray[i] = new CacheDragon(cache_size, cache_assoc, blk_size, i, bus);
+		else
+    		cacheArray[i] = new CacheDragon(cache_size, cache_assoc, blk_size, i, bus);
     }
 	bus->setCache(cacheArray);
 

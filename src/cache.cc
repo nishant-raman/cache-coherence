@@ -155,7 +155,7 @@ cacheLine *Cache::fillLine(ulong addr)
    cacheLine *victim = findLineToReplace(addr);
    assert(victim != 0);
    
-   if(victim->getFlags() == DIRTY) {
+   if(victim->getFlags().v == DIRTY) {
 	  mem_txn++;
       writeBack(addr);
 		// FIXME is flush needed here?
@@ -213,7 +213,7 @@ void CacheMSI::ProcAccess (ulong addr, uchar op) {
 	}
 }
 
-void CacheMSI::BusAccess (ulong addr, uchar op) {	      
+bool CacheMSI::BusAccess (ulong addr, uchar op) {	      
 	// no other bus operations should be allowed in MSI
 	assert((op == BUS_RD) || (op == BUS_RDX));
 	
@@ -222,7 +222,7 @@ void CacheMSI::BusAccess (ulong addr, uchar op) {
 	// if yes then invalidate (if modified then flush)
 	cacheLine* line = findLine(addr);
 	if (line) {
-		if (line->getFlags() == DIRTY) {
+		if (line->getFlags().v == DIRTY) {
 			mem_txn++;
     		writeBack(addr);
 			flushes++;
@@ -232,29 +232,89 @@ void CacheMSI::BusAccess (ulong addr, uchar op) {
 		line->invalidate();
 	}
 	
+	return false; // no return needed
 }
-		// Dragon
-		// if miss busrd
-		// 		if rd and busrd returns bool
-		// 			if true (other cache has block) then Sc
-		// 			if false then E
-		// 		if wr and busrd returns bool
-		// 			if true Sm
-		// 			if false M
-		// if hit
-		// 		if rd then nothing
-		// 		if wr
-		// 			if E/M then mod or nothing
-		// 			else busupd (returns bool)
-		// 				if true then Sm
-		// 				else M
 
-	// for Dragon
+void CacheDragon::ProcAccess (ulong addr, uchar op) {
+
+	// if miss busrd
+	// 		if rd and busrd returns bool
+	// 			if true (other cache has block) then Sc
+	// 			if false then E
+	// 		if wr and busrd returns bool
+	// 			if true Sm
+	// 			if false M
+	// if hit
+	// 		if rd then nothing
+	// 		if wr
+	// 			if E/M then mod or nothing
+	// 			else busupd (returns bool)
+	// 				if true then Sm
+	// 				else M
+
+	currentCycle++;
+	if (op == PR_WR) 		writes++;
+	else if (op == PR_RD)	reads++;
+	bool copies_exist;
+
+	cacheLine * line = findLine(addr);
+	if (line == NULL) {
+
+		cacheLine *newline = fillLine(addr);
+		copies_exist = bus->busTxn(addr,id,BUS_RD);
+
+		if (op == PR_WR) {
+			writeMisses++;
+			copies_exist ? newline->setFlags(DIRTY,SHARED) 		// Sm
+						: newline->setFlags(DIRTY,EXCLUSIVE); 	// M
+			if (copies_exist)
+				bus->busTxn(addr,id,BUS_UPD);
+
+		} else if (op == PR_RD) {
+			readMisses++;
+			copies_exist ? newline->setFlags(VALID,SHARED)		// Sc
+						: newline->setFlags(VALID,EXCLUSIVE);	// E
+		}
+
+	} else {
+
+		updateLRU(line);
+
+		if (op == PR_WR) {
+			if (line->getFlags().s == SHARED) {
+				copies_exist = bus->busTxn(addr,id,BUS_UPD);
+				copies_exist ? line->setFlags(DIRTY,SHARED)  	// Sm
+							: line->setFlags(DIRTY,EXCLUSIVE); 	// M
+			} else
+				line->setFlags(DIRTY);
+		}
+	}
+}
+
+bool CacheDragon::BusAccess (ulong addr, uchar op) {
 	// BusRd
 	// 		E/M -> Sc/Sm, return true
 	// 		if M/Sm then flush FIXME
 	// BusUpd
 	// 		-> Sc
 	// 		update
-	// 		FIXME? assert no busupd if in m and e state
-
+	cacheLine* line = findLine(addr);
+	if (line) {
+		if (op == BUS_RD) {
+			State cs, ns;
+			cs = line->getFlags();
+			ns.v = cs.v;
+			ns.s = SHARED;
+			line->setFlags(ns.v, ns.s);
+			// TODO if cs.v == MODIFIED
+			// 	Flush()
+		} else if (op == BUS_UPD) {
+			assert(line->getFlags().s == SHARED);
+			line->setFlags(VALID);
+			// TODO UPDATE
+		}
+		return true;
+	} else {
+		return false;
+	}
+}

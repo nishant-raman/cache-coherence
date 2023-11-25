@@ -20,10 +20,12 @@ void Bus::setCache (Cache** _cache_array) {
 		cache_array[i] = _cache_array[i];
 }
 
-void Bus::busTxn (ulong addr, ulong pid, uchar op) {
+bool Bus::busTxn (ulong addr, ulong pid, uchar op) {
+	bool ack = false;
 	for (ulong i=0; i<num_cache; i++) {
 		if (i != pid)
-			cache_array[i]->BusAccess(addr, op);
+			ack |= cache_array[i]->BusAccess(addr, op);
 	}
-}
 
+	return ack;
+}

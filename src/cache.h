@@ -15,12 +15,12 @@ typedef unsigned long ulong;
 typedef unsigned char uchar;
 typedef unsigned int uint;
 
-/****add new states, based on the protocol****/
-// TODO either add states or new flag with shared/exclusive state
 enum {
    INVALID = 0,
    VALID,
-   DIRTY
+   DIRTY,
+   SHARED = 0,
+   EXCLUSIVE
 };
 
 enum operations {
@@ -33,34 +33,36 @@ enum operations {
 	UPDATE	= 'u'
 };
 
-/*
-enum coherence_state {
-	I
-	C
-	Sc
-	Sm
-	E
-	M
-}
-*/
+// Look up table:
+//	0X -> I
+//	10 -> Sc(Dragon)
+//	11 -> S(MSI), E(Dragon)
+//	20 -> Sm(Dragon)
+//	21 -> M
+struct State {
+	ulong v; // invalid/valid/modified
+	ulong s; // shared/exclusive
+};
 
 class cacheLine 
 {
 protected:
    ulong tag;
-   ulong Flags;   // 0:invalid, 1:valid, 2:dirty 
+   State Flags;
    ulong seq; 
  
 public:
-   cacheLine()                { tag = 0; Flags = 0; }
+   cacheLine()                { tag = 0; Flags.v = 0; }
    ulong getTag()             { return tag; }
-   ulong getFlags()           { return Flags;}
+   State getFlags()           { return Flags; }
    ulong getSeq()             { return seq; }
    void setSeq(ulong Seq)     { seq = Seq;}
-   void setFlags(ulong flags) {  Flags = flags;}
+   void setFlags(ulong v) {  Flags.v = v; }
+   void setFlags(ulong v, ulong s) {  Flags.v = v; Flags.s = s; }
    void setTag(ulong a)       { tag = a; }
-   void invalidate()          { tag = 0; Flags = INVALID; } //useful function
-   bool isValid()             { return ((Flags) != INVALID); }
+   void invalidate()          { tag = 0; Flags.v = INVALID; } //useful function
+   bool isValid()             { return ((Flags.v) != INVALID); }
+// status update () FIXME acccomodate new state flags TODO getter and setter
 };
 
 class Cache
@@ -99,8 +101,7 @@ public:
    void printStats();
    void updateLRU(cacheLine *);
 
-   virtual void BusAccess(ulong,uchar) = 0;
-// status update ()
+   virtual bool BusAccess(ulong,uchar) = 0;
 
    //******///
    //add other functions to handle bus transactions///
@@ -114,7 +115,7 @@ class CacheMSI : public Cache {
 			Cache(s, a, b, _id, _bus) {}
 
 		void ProcAccess (ulong, uchar);
-		void BusAccess (ulong, uchar);
+		bool BusAccess (ulong, uchar);
 };
 
 class CacheDragon : public Cache {
@@ -123,7 +124,7 @@ class CacheDragon : public Cache {
 			Cache(s, a, b, _id, _bus) {}
 
 		void ProcAccess (ulong, uchar);
-		void BusAccess (ulong, uchar);
+		bool BusAccess (ulong, uchar);
 };
 
 #endif
