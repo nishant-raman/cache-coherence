@@ -26,11 +26,11 @@ enum {
 enum operations {
 	PR_RD 	= 'r',
 	PR_WR 	= 'w',
-	BUS_RD  = 'b',
-	BUS_RDX = 'x',
-	BUS_UPD = 'u',
-	FLUSH	= 'f',
-	UPDATE	= 'd'
+	BUS_RD  = 'R',
+	BUS_RDX = 'X',
+	BUS_UPD = 'U',
+	FLUSH	= 'F',
+	UPDATE	= 'u'
 };
 
 /*
@@ -71,7 +71,6 @@ protected:
    ulong mem_txn, invalidations, flushes, busrdx;
 
    ulong id;
-   bool protocol; // 0 MSI, 1 Dragon
    Bus*	bus;
    cacheLine **cache;
    ulong calcTag(ulong addr)     { return (addr >> (log2Blk) );}
@@ -81,7 +80,7 @@ protected:
 public:
     ulong currentCycle;  
      
-    Cache(int,int,int, ulong, Bus*, bool);
+    Cache(int,int,int, ulong, Bus*);
    ~Cache() { delete cache;}
    
    cacheLine *findLineToReplace(ulong addr);
@@ -96,15 +95,35 @@ public:
    ulong getWB()     {return writeBacks;}
    
    void writeBack(ulong) {writeBacks++;}
-   void Access(ulong,uchar);
+   virtual void ProcAccess(ulong,uchar);
    void printStats();
    void updateLRU(cacheLine *);
 
+   virtual void BusAccess(ulong,uchar) = 0;
+// status update ()
 
    //******///
    //add other functions to handle bus transactions///
    //******///
 
+};
+
+class CacheMSI : public Cache {
+	public:
+		CacheMSI(int s,int a,int b, ulong _id, Bus* _bus) :
+			Cache(s, a, b, _id, _bus) {}
+
+		void ProcAccess (ulong, uchar);
+		void BusAccess (ulong, uchar);
+};
+
+class CacheDragon : public Cache {
+	public:
+		CacheDragon(int s,int a,int b, ulong _id, Bus* _bus) :
+			Cache(s, a, b, _id, _bus) {}
+
+		void ProcAccess (ulong, uchar);
+		void BusAccess (ulong, uchar);
 };
 
 #endif

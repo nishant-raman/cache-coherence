@@ -37,7 +37,10 @@ int main(int argc, char *argv[])
     Cache** cacheArray = (Cache **) malloc(num_processors * sizeof(Cache));
 	Bus* bus = new Bus(num_processors, cacheArray);
     for(ulong i = 0; i < num_processors; i++) {
-    	cacheArray[i] = new Cache(cache_size, cache_assoc, blk_size, i, bus, (bool) protocol);
+		if (protocol == 0)
+    		cacheArray[i] = new CacheMSI(cache_size, cache_assoc, blk_size, i, bus);
+		//else
+    	//	cacheArray[i] = new CacheDragon(cache_size, cache_assoc, blk_size, i, bus);
     }
 	bus->setCache(cacheArray);
 
@@ -59,7 +62,7 @@ int main(int argc, char *argv[])
 #ifdef _DEBUG
         printf("%d\n", line);
 #endif
-        cacheArray[proc]->Access(addr,op);
+        cacheArray[proc]->ProcAccess(addr,op);
         line++;
     }
 

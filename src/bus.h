@@ -19,10 +19,11 @@ class Bus {
 		Bus(ulong n, Cache** _cache_array);
 		
 		void setCache (Cache** _cache_array);
+		void busTxn (ulong, ulong, uchar);
 
-		void busRd	(ulong, ulong);
-		void busRdX (ulong, ulong);
-		void flush	(ulong, ulong);
+		//void busRd	(ulong, ulong);
+		//void busRdX (ulong, ulong);
+		//void flush	(ulong, ulong);
 		//void busUpd (ulong addr); // TODO different return type for C flag
 };
 

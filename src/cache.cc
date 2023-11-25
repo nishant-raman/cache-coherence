@@ -8,7 +8,7 @@
 #include "bus.h"
 using namespace std;
 
-Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus, bool _protocol)
+Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus)
 {
    ulong i, j;
    reads = readMisses = writes = 0; 
@@ -26,7 +26,6 @@ Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus, bool _protocol)
    //initialize your counters here//
    //*******************//
    id = _id;
-   protocol = _protocol;
    bus = _bus;
  
    tagMask =0;
@@ -52,91 +51,32 @@ Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus, bool _protocol)
 /**you might add other parameters to Access()
 since this function is an entry point 
 to the memory hierarchy (i.e. caches)**/
-void Cache::Access(ulong addr,uchar op)
+void Cache::ProcAccess(ulong addr,uchar op)
 {
 	// If processor accesses cache
-   if ((op == PR_RD) || (op == PR_WR)) {
-	   currentCycle++;/*per cache global counter to maintain LRU order 
-	                    among cache ways, updated on every cache access*/
-	         
-	   if(op == 'w') writes++;
-	   else          reads++;
-	   
-	   cacheLine * line = findLine(addr);
-	   if(line == NULL)/*miss*/
-	   {
-		  mem_txn++;
-	      if(op == 'w') writeMisses++;
-	      else readMisses++;
-	
-	      cacheLine *newline = fillLine(addr);
-	      if(op == 'w') newline->setFlags(DIRTY);    
-	
-		  // Processor generated bus requests
-		  if(op == 'w') {
-			busrdx++;
-			bus->busRdX(addr,id);
-		  } else {
-			bus->busRd(addr,id);
-		  }
+	currentCycle++;/*per cache global counter to maintain LRU order 
+	                 among cache ways, updated on every cache access*/
 	      
-	   }
-	   else
-	   {
-	      /**since it's a hit, update LRU and update dirty flag**/
-	      updateLRU(line);
-	      if(op == 'w') line->setFlags(DIRTY);
-	   }
-		// MSI
-		// if miss
-		// 		if rd then busrd
-		// 		if wr then budrdx
-		// if hit
-		// 		if rd then nothing
-		// 		if wr then mod
-		//
-		// Dragon
-		// if miss busrd
-		// 		if rd and busrd returns bool
-		// 			if true (other cache has block) then Sc
-		// 			if false then E
-		// 		if wr and busrd returns bool
-		// 			if true Sm
-		// 			if false M
-		// if hit
-		// 		if rd then nothing
-		// 		if wr
-		// 			if E/M then mod or nothing
-		// 			else busupd (returns bool)
-		// 				if true then Sm
-		// 				else M
+	if(op == 'w') writes++;
+	else          reads++;
+	
+	cacheLine * line = findLine(addr);
+	if(line == NULL)/*miss*/
+	{
+	   mem_txn++;
+	   if(op == 'w') writeMisses++;
+	   else readMisses++;
+	
+	   cacheLine *newline = fillLine(addr);
+	   if(op == 'w') newline->setFlags(DIRTY);    
+	
 	}
-
-	// BUS RD/X 
-	// for MSI
-	// check if cache has cache line with addr
-	// if yes then invalidate (if modified then flush)
-	if ((op == BUS_RD) || (op == BUS_RDX)) {
-		cacheLine* line = findLine(addr);
-		if (line) {
-			if (line->getFlags() == DIRTY) {
-	   			mem_txn++;
-      			writeBack(addr);
-				flushes++;
-				bus->flush(addr, id);
-			}
-			invalidations++;
-			line->invalidate();
-		}
+	else
+	{
+	   /**since it's a hit, update LRU and update dirty flag**/
+	   updateLRU(line);
+	   if(op == 'w') line->setFlags(DIRTY);
 	}
-	// for Dragon
-	// BusRd
-	// 		E/M -> Sc/Sm, return true
-	// 		if M/Sm then flush FIXME
-	// BusUpd
-	// 		-> Sc
-	// 		update
-	// 		FIXME? assert no busupd if in m and e state
 }
 
 /*look up line*/
@@ -248,4 +188,73 @@ void Cache::printStats()
    /****print out the rest of statistics here.****/
    /****follow the ouput file format**************/
 }
+
+void CacheMSI::ProcAccess (ulong addr, uchar op) {
+
+	// if miss
+	// 		if rd then busrd
+	// 		if wr then budrdx
+	// if hit
+	// 		if rd then nothing
+	// 		if wr then mod (handled in proc access())
+
+	// need to check for miss before cache is updated by Access() call
+	cacheLine * line = findLine(addr);
+	Cache::ProcAccess(addr, op);
+	
+	// Processor generated bus requests
+	if(line == NULL) {
+		if(op == PR_WR) {
+		  busrdx++;
+		  bus->busTxn(addr,id,BUS_RDX);
+		} else if (op == PR_RD) {
+		  bus->busTxn(addr,id,BUS_RD);
+		}
+	}
+}
+
+void CacheMSI::BusAccess (ulong addr, uchar op) {	      
+	// no other bus operations should be allowed in MSI
+	assert((op == BUS_RD) || (op == BUS_RDX));
+	
+	// BUS RD/X 
+	// check if cache has cache line with addr
+	// if yes then invalidate (if modified then flush)
+	cacheLine* line = findLine(addr);
+	if (line) {
+		if (line->getFlags() == DIRTY) {
+			mem_txn++;
+    		writeBack(addr);
+			flushes++;
+			// No action on flush needed here
+		}
+		invalidations++;
+		line->invalidate();
+	}
+	
+}
+		// Dragon
+		// if miss busrd
+		// 		if rd and busrd returns bool
+		// 			if true (other cache has block) then Sc
+		// 			if false then E
+		// 		if wr and busrd returns bool
+		// 			if true Sm
+		// 			if false M
+		// if hit
+		// 		if rd then nothing
+		// 		if wr
+		// 			if E/M then mod or nothing
+		// 			else busupd (returns bool)
+		// 				if true then Sm
+		// 				else M
+
+	// for Dragon
+	// BusRd
+	// 		E/M -> Sc/Sm, return true
+	// 		if M/Sm then flush FIXME
+	// BusUpd
+	// 		-> Sc
+	// 		update
+	// 		FIXME? assert no busupd if in m and e state
 

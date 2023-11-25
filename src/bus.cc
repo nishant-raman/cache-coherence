@@ -20,25 +20,10 @@ void Bus::setCache (Cache** _cache_array) {
 		cache_array[i] = _cache_array[i];
 }
 
-void Bus::busRd (ulong addr, ulong pid) {
+void Bus::busTxn (ulong addr, ulong pid, uchar op) {
 	for (ulong i=0; i<num_cache; i++) {
 		if (i != pid)
-			cache_array[i]->Access(addr, BUS_RD);
+			cache_array[i]->BusAccess(addr, op);
 	}
 }
-
-void Bus::busRdX (ulong addr, ulong pid) {
-	for (ulong i=0; i<num_cache; i++) {
-		if (i != pid)
-			cache_array[i]->Access(addr, BUS_RDX);
-	}
-}
-
-void Bus::flush (ulong addr, ulong pid) {
-	// for MSI this function is a dummy function
-	// it functionally does nothing 
-	// placeholder for actual data flush to the bus
-	return;
-}
-
 
