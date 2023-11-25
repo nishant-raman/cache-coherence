@@ -8,7 +8,7 @@
 #include "bus.h"
 using namespace std;
 
-Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus)
+Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus, bool _protocol)
 {
    ulong i, j;
    reads = readMisses = writes = 0; 
@@ -26,6 +26,7 @@ Cache::Cache(int s,int a,int b, ulong _id, Bus* _bus)
    //initialize your counters here//
    //*******************//
    id = _id;
+   protocol = _protocol;
    bus = _bus;
  
    tagMask =0;
@@ -71,6 +72,7 @@ void Cache::Access(ulong addr,uchar op)
 	      cacheLine *newline = fillLine(addr);
 	      if(op == 'w') newline->setFlags(DIRTY);    
 	
+		  // Processor generated bus requests
 		  if(op == 'w') {
 			busrdx++;
 			bus->busRdX(addr,id);
@@ -92,9 +94,25 @@ void Cache::Access(ulong addr,uchar op)
 		// if hit
 		// 		if rd then nothing
 		// 		if wr then mod
+		//
+		// Dragon
+		// if miss busrd
+		// 		if rd and busrd returns bool
+		// 			if true (other cache has block) then Sc
+		// 			if false then E
+		// 		if wr and busrd returns bool
+		// 			if true Sm
+		// 			if false M
+		// if hit
+		// 		if rd then nothing
+		// 		if wr
+		// 			if E/M then mod or nothing
+		// 			else busupd (returns bool)
+		// 				if true then Sm
+		// 				else M
 	}
 
-	// BUS RD 
+	// BUS RD/X 
 	// for MSI
 	// check if cache has cache line with addr
 	// if yes then invalidate (if modified then flush)
@@ -111,6 +129,14 @@ void Cache::Access(ulong addr,uchar op)
 			line->invalidate();
 		}
 	}
+	// for Dragon
+	// BusRd
+	// 		E/M -> Sc/Sm, return true
+	// 		if M/Sm then flush FIXME
+	// BusUpd
+	// 		-> Sc
+	// 		update
+	// 		FIXME? assert no busupd if in m and e state
 }
 
 /*look up line*/
@@ -209,18 +235,17 @@ void Cache::printStats()
    float missrate = (float)(readMisses + writeMisses)*100/(float)(reads + writes);
 	
    printf("============ Simulation results (Cache %lu) ============\n", id);
-   printf("01. number of reads:				%lu\n", reads);
-   printf("02. number of read misses:			%lu\n", readMisses);
-   printf("03. number of writes:				%lu\n", writes);
-   printf("04. number of write misses:			%lu\n", writeMisses);
-   printf("05. total miss rate:				%.2f%%\n", missrate);
-   printf("06. number of writebacks:			%lu\n", writeBacks);
-   printf("07. number of memory transactions:		%lu\n", mem_txn);
-   printf("08. number of invalidations:			%lu\n", invalidations);
-   printf("09. number of flushes:				%lu\n", flushes);
-   printf("10. number of BusRdX:				%lu\n", busrdx);
+   printf("01. number of reads:                            %lu\n", reads);
+   printf("02. number of read misses:                      %lu\n", readMisses);
+   printf("03. number of writes:                           %lu\n", writes);
+   printf("04. number of write misses:                     %lu\n", writeMisses);
+   printf("05. total miss rate:                            %.2f%%\n", missrate);
+   printf("06. number of writebacks:                       %lu\n", writeBacks);
+   printf("07. number of memory transactions:              %lu\n", mem_txn);
+   printf("08. number of invalidations:                    %lu\n", invalidations);
+   printf("09. number of flushes:                          %lu\n", flushes);
+   printf("10. number of BusRdX:                           %lu\n", busrdx);
    /****print out the rest of statistics here.****/
    /****follow the ouput file format**************/
-	// TODO
 }
 

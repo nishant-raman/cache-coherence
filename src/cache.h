@@ -16,6 +16,7 @@ typedef unsigned char uchar;
 typedef unsigned int uint;
 
 /****add new states, based on the protocol****/
+// TODO either add states or new flag with shared/exclusive state
 enum {
    INVALID = 0,
    VALID,
@@ -70,6 +71,7 @@ protected:
    ulong mem_txn, invalidations, flushes, busrdx;
 
    ulong id;
+   bool protocol; // 0 MSI, 1 Dragon
    Bus*	bus;
    cacheLine **cache;
    ulong calcTag(ulong addr)     { return (addr >> (log2Blk) );}
@@ -79,7 +81,7 @@ protected:
 public:
     ulong currentCycle;  
      
-    Cache(int,int,int, ulong, Bus*);
+    Cache(int,int,int, ulong, Bus*, bool);
    ~Cache() { delete cache;}
    
    cacheLine *findLineToReplace(ulong addr);

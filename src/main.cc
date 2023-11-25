@@ -30,16 +30,14 @@ int main(int argc, char *argv[])
     char *fname        = (char *) malloc(20);
     fname              = argv[6];
 
-    printf("===== Simulator configuration =====\n");
+    //printf("===== Simulator configuration =====\n");
     // print out simulator configuration here
     
     // Using pointers so that we can use inheritance */
     Cache** cacheArray = (Cache **) malloc(num_processors * sizeof(Cache));
 	Bus* bus = new Bus(num_processors, cacheArray);
     for(ulong i = 0; i < num_processors; i++) {
-        if(protocol == 0) {
-            cacheArray[i] = new Cache(cache_size, cache_assoc, blk_size, i, bus);
-        }
+    	cacheArray[i] = new Cache(cache_size, cache_assoc, blk_size, i, bus, (bool) protocol);
     }
 	bus->setCache(cacheArray);
 
@@ -71,18 +69,24 @@ int main(int argc, char *argv[])
     //print out all caches' statistics //
     //********************************//
     printf("===== 506 Personal information =====\n");
-	printf("Nishant Raman\n");
-	printf("nraman2\n");
-	printf("ECE492 Students? NO\n");
+	//printf("Nishant Raman\n");
+	//printf("nraman2\n");
+	//printf("ECE492 Students? NO\n");
+	printf("Name\n");
+	printf("unity\n");
+	printf("ECE406 Students? NO\n");
+	//printf("FirstName (MiddleNames) LastName (Change it to your own name)\n");
+	//printf("UnityID (Change it to your own UID)\n");
+	//printf("ECE492 Students? YES/NO (Change it according to your own section)\n");
 	printf("===== 506 SMP Simulator configuration =====\n");
-	printf("L1_SIZE: 		%lu\n",cache_size);
-	printf("L1_ASSOC: 		%lu\n",cache_assoc);
-	printf("L1_BLOCKSIZE:		%lu\n",blk_size);
-	printf("NUMBER OF PROCESSORS: 	%lu\n",num_processors);
+	printf("L1_SIZE:                %lu\n",cache_size);
+	printf("L1_ASSOC:               %lu\n",cache_assoc);
+	printf("L1_BLOCKSIZE:           %lu\n",blk_size);
+	printf("NUMBER OF PROCESSORS:   %lu\n",num_processors);
 	if (protocol)
-		printf("COHERENCE PROTOCOL: 	Dragon\n");
+		printf("COHERENCE PROTOCOL:     Dragon\n");
 	else
-		printf("COHERENCE PROTOCOL: 	MSI\n");
+		printf("COHERENCE PROTOCOL:     MSI\n");
 	printf("TRACE FILE: 		%s\n",fname);
 	for (ulong i=0; i<num_processors; i++) {
 		cacheArray[i]->printStats();
