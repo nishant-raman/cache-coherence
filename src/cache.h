@@ -62,7 +62,6 @@ public:
    void setTag(ulong a)       { tag = a; }
    void invalidate()          { tag = 0; Flags.v = INVALID; } //useful function
    bool isValid()             { return ((Flags.v) != INVALID); }
-// status update () FIXME acccomodate new state flags TODO getter and setter
 };
 
 class Cache
@@ -70,7 +69,7 @@ class Cache
 protected:
    ulong size, lineSize, assoc, sets, log2Sets, log2Blk, tagMask, numLines;
    ulong reads,readMisses,writes,writeMisses,writeBacks;
-   ulong mem_txn, invalidations, flushes, busrdx;
+   ulong mem_txn, flushes;
 
    ulong id;
    Bus*	bus;
@@ -98,7 +97,7 @@ public:
    
    void writeBack(ulong) {writeBacks++;}
    virtual void ProcAccess(ulong,uchar);
-   void printStats();
+   virtual void printStats();
    void updateLRU(cacheLine *);
 
    virtual bool BusAccess(ulong,uchar) = 0;
@@ -110,21 +109,29 @@ public:
 };
 
 class CacheMSI : public Cache {
+	protected:
+   		ulong invalidations, busrdx;
+
 	public:
 		CacheMSI(int s,int a,int b, ulong _id, Bus* _bus) :
 			Cache(s, a, b, _id, _bus) {}
 
 		void ProcAccess (ulong, uchar);
 		bool BusAccess (ulong, uchar);
+		void printStats();
 };
 
 class CacheDragon : public Cache {
+	protected:
+   		ulong interventions, busupd;
+
 	public:
 		CacheDragon(int s,int a,int b, ulong _id, Bus* _bus) :
 			Cache(s, a, b, _id, _bus) {}
 
 		void ProcAccess (ulong, uchar);
 		bool BusAccess (ulong, uchar);
+		void printStats();
 };
 
 #endif

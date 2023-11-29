@@ -158,7 +158,6 @@ cacheLine *Cache::fillLine(ulong addr)
    if(victim->getFlags().v == DIRTY) {
 	  mem_txn++;
       writeBack(addr);
-		// FIXME is flush needed here?
    }
       
    tag = calcTag(addr);   
@@ -182,11 +181,7 @@ void Cache::printStats()
    printf("05. total miss rate:                            %.2f%%\n", missrate);
    printf("06. number of writebacks:                       %lu\n", writeBacks);
    printf("07. number of memory transactions:              %lu\n", mem_txn);
-   printf("08. number of invalidations:                    %lu\n", invalidations);
-   printf("09. number of flushes:                          %lu\n", flushes);
-   printf("10. number of BusRdX:                           %lu\n", busrdx);
-   /****print out the rest of statistics here.****/
-   /****follow the ouput file format**************/
+
 }
 
 void CacheMSI::ProcAccess (ulong addr, uchar op) {
@@ -235,6 +230,13 @@ bool CacheMSI::BusAccess (ulong addr, uchar op) {
 	return false; // no return needed
 }
 
+void CacheMSI::printStats() {
+	Cache::printStats();
+   	printf("08. number of invalidations:                    %lu\n", invalidations);
+   	printf("09. number of flushes:                          %lu\n", flushes);
+   	printf("10. number of BusRdX:                           %lu\n", busrdx);
+}
+
 void CacheDragon::ProcAccess (ulong addr, uchar op) {
 
 	// if miss busrd
@@ -262,13 +264,16 @@ void CacheDragon::ProcAccess (ulong addr, uchar op) {
 
 		cacheLine *newline = fillLine(addr);
 		copies_exist = bus->busTxn(addr,id,BUS_RD);
+		mem_txn++;
 
 		if (op == PR_WR) {
 			writeMisses++;
 			copies_exist ? newline->setFlags(DIRTY,SHARED) 		// Sm
 						: newline->setFlags(DIRTY,EXCLUSIVE); 	// M
-			if (copies_exist)
+			if (copies_exist) {
 				bus->busTxn(addr,id,BUS_UPD);
+				busupd++;
+			}
 
 		} else if (op == PR_RD) {
 			readMisses++;
@@ -283,6 +288,7 @@ void CacheDragon::ProcAccess (ulong addr, uchar op) {
 		if (op == PR_WR) {
 			if (line->getFlags().s == SHARED) {
 				copies_exist = bus->busTxn(addr,id,BUS_UPD);
+				busupd++;
 				copies_exist ? line->setFlags(DIRTY,SHARED)  	// Sm
 							: line->setFlags(DIRTY,EXCLUSIVE); 	// M
 			} else
@@ -294,7 +300,7 @@ void CacheDragon::ProcAccess (ulong addr, uchar op) {
 bool CacheDragon::BusAccess (ulong addr, uchar op) {
 	// BusRd
 	// 		E/M -> Sc/Sm, return true
-	// 		if M/Sm then flush FIXME
+	// 		if M/Sm then flush
 	// BusUpd
 	// 		-> Sc
 	// 		update
@@ -306,15 +312,29 @@ bool CacheDragon::BusAccess (ulong addr, uchar op) {
 			ns.v = cs.v;
 			ns.s = SHARED;
 			line->setFlags(ns.v, ns.s);
-			// TODO if cs.v == MODIFIED
-			// 	Flush()
+			if (cs.v == DIRTY) {
+				mem_txn++;
+				writeBack(addr);
+				flushes++;
+			}
+			if (cs.s == EXCLUSIVE)
+				interventions++;
 		} else if (op == BUS_UPD) {
 			assert(line->getFlags().s == SHARED);
 			line->setFlags(VALID);
-			// TODO UPDATE
+			// FIXME UPDATE
+			//updateLRU(line);
 		}
 		return true;
 	} else {
 		return false;
 	}
 }
+
+void CacheDragon::printStats() {
+	Cache::printStats();
+   	printf("08. number of interventions:                    %lu\n", interventions);
+   	printf("09. number of flushes:                          %lu\n", flushes);
+   	printf("10. number of Bus Transactions(BusUpd):         %lu\n", busupd);
+}
+
