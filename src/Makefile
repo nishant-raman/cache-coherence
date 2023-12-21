@@ -48,4 +48,4 @@ val: all
 	./smp_cache 8192 8 64 4 $(PROTOCOL) $(TRACE_FILE) | diff -iwy - $(VALIDATION_FILE)
 
 pack:
-	zip -j project2.zip *.cc *.h
+	zip -j project2.zip *.cc *.h *.pdf

@@ -72,12 +72,12 @@ int main(int argc, char *argv[])
     //print out all caches' statistics //
     //********************************//
     printf("===== 506 Personal information =====\n");
-	//printf("Nishant Raman\n");
-	//printf("nraman2\n");
-	//printf("ECE492 Students? NO\n");
-	printf("Name\n");
-	printf("unity\n");
-	printf("ECE406 Students? NO\n");
+	printf("Nishant Raman\n");
+	printf("nraman2\n");
+	printf("ECE492 Students? NO\n");
+	//printf("Name\n");
+	//printf("unity\n");
+	//printf("ECE406 Students? NO\n");
 	//printf("FirstName (MiddleNames) LastName (Change it to your own name)\n");
 	//printf("UnityID (Change it to your own UID)\n");
 	//printf("ECE492 Students? YES/NO (Change it according to your own section)\n");
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 		printf("COHERENCE PROTOCOL:     Dragon\n");
 	else
 		printf("COHERENCE PROTOCOL:     MSI\n");
-	printf("TRACE FILE: 		%s\n",fname);
+	printf("TRACE FILE:             %s\n",fname);
 	for (ulong i=0; i<num_processors; i++) {
 		cacheArray[i]->printStats();
 	}
